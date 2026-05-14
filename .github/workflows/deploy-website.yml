@@ -23,6 +23,24 @@ jobs:
     defaults:
       run:
         working-directory: website
+    env:
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || vars.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || vars.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL || vars.VITE_FIREBASE_DATABASE_URL }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID || vars.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID || vars.VITE_FIREBASE_APP_ID }}
+      VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID || vars.VITE_FIREBASE_MEASUREMENT_ID }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID || vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET || vars.VITE_FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_DB_ROOT: ${{ secrets.VITE_FIREBASE_DB_ROOT || vars.VITE_FIREBASE_DB_ROOT }}
+      VITE_DISCORD_PROVIDER_ID: oidc.discord
+      VITE_DISCORD_CLIENT_ID: ${{ secrets.VITE_DISCORD_CLIENT_ID || vars.VITE_DISCORD_CLIENT_ID }}
+      VITE_DISCORD_REDIRECT_URI: ${{ secrets.VITE_DISCORD_REDIRECT_URI || vars.VITE_DISCORD_REDIRECT_URI }}
+      VITE_DISCORD_INVITE_URL: ${{ secrets.VITE_DISCORD_INVITE_URL || vars.VITE_DISCORD_INVITE_URL }}
+      VITE_SUPPORT_SERVER_URL: ${{ secrets.VITE_SUPPORT_SERVER_URL || vars.VITE_SUPPORT_SERVER_URL }}
+      VITE_TOPGG_URL: ${{ secrets.VITE_TOPGG_URL || vars.VITE_TOPGG_URL }}
+      VITE_BASE_PATH: ${{ secrets.VITE_BASE_PATH || vars.VITE_BASE_PATH }}
+      VITE_USE_HASH_ROUTER: ${{ secrets.VITE_USE_HASH_ROUTER || vars.VITE_USE_HASH_ROUTER }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,20 +49,17 @@ jobs:
           cache: npm
           cache-dependency-path: website/package-lock.json
       - run: npm ci
+      - name: Check website configuration
+        run: |
+          missing=0
+          for name in VITE_FIREBASE_API_KEY VITE_FIREBASE_DATABASE_URL VITE_FIREBASE_PROJECT_ID VITE_DISCORD_CLIENT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is required for the website build. Add it as a GitHub Actions secret or repository variable."
+              missing=1
+            fi
+          done
+          exit "$missing"
       - run: npm run build
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_DB_ROOT: ${{ secrets.VITE_FIREBASE_DB_ROOT }}
-          VITE_DISCORD_PROVIDER_ID: oidc.discord
-          VITE_DISCORD_INVITE_URL: ${{ secrets.VITE_DISCORD_INVITE_URL }}
-          VITE_SUPPORT_SERVER_URL: ${{ secrets.VITE_SUPPORT_SERVER_URL }}
-          VITE_TOPGG_URL: ${{ secrets.VITE_TOPGG_URL }}
       - run: cp dist/index.html dist/404.html
       - uses: actions/upload-pages-artifact@v3
         with:
