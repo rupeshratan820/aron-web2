@@ -100,6 +100,25 @@ export async function getSiteStats() {
   });
 }
 
+export async function getTopWishlistedCards(limit = 3) {
+  return cached(`topWishlistedCards:${limit}`, async () => {
+    const [cards, wishlistLeaderboard] = await Promise.all([
+      readCollection("cards", 500),
+      readLiveOrSnapshot("wishlistLeaderboard", {})
+    ]);
+
+    return Object.entries(normalizeCollection(wishlistLeaderboard))
+      .map(([cardId, count]) => ({
+        cardId: String(cardId),
+        count: Number(count || 0),
+        card: cards?.[cardId]
+      }))
+      .filter((entry) => entry.card && entry.count > 0)
+      .sort((left, right) => right.count - left.count || String(left.card?.name || "").localeCompare(String(right.card?.name || "")))
+      .slice(0, limit);
+  }, 45_000);
+}
+
 export async function getDashboard(discordId) {
   if (!discordId) return null;
   return cached(`dashboard:${discordId}`, async () => {
