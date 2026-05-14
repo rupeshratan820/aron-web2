@@ -9,7 +9,16 @@ import {
 import { auth } from "./firebase.js";
 
 const RETURN_ROUTE_KEY = "aron.firebaseAuthReturnTo";
-const DISCORD_PROVIDER_ID = "oidc.discord";
+const DISCORD_PROVIDER_ID = String(import.meta.env.VITE_FIREBASE_DISCORD_PROVIDER_ID || "oidc.discord").trim();
+
+function friendlyAuthError(error) {
+  if (error?.code === "auth/configuration-not-found") {
+    return new Error(
+      `Firebase Discord login is not configured. Enable a Firebase Auth custom OIDC provider with provider ID "${DISCORD_PROVIDER_ID}".`
+    );
+  }
+  return error;
+}
 
 function currentRoute() {
   const hash = window.location.hash || "#/";
@@ -78,7 +87,7 @@ export async function startDiscordLogin() {
       return null;
     }
     sessionStorage.removeItem(RETURN_ROUTE_KEY);
-    throw error;
+    throw friendlyAuthError(error);
   }
 }
 
@@ -87,7 +96,7 @@ export async function finishDiscordLogin() {
 
   const credential = await getRedirectResult(auth).catch((error) => {
     sessionStorage.removeItem(RETURN_ROUTE_KEY);
-    throw error;
+    throw friendlyAuthError(error);
   });
 
   const returnTo = sessionStorage.getItem(RETURN_ROUTE_KEY);
