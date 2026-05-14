@@ -1,8 +1,9 @@
 import { LogIn, LogOut, Menu, Sparkles, ShieldCheck, UserRound } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuthStore } from "../store/authStore.js";
+import { isAdminIdentity } from "../lib/adminActions.js";
 import Button from "./Button.jsx";
 
 const nav = [
@@ -15,7 +16,20 @@ const nav = [
 
 export default function AppShell({ children }) {
   const [open, setOpen] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const { identity, user, login, logout, loading, error } = useAuthStore();
+
+  useEffect(() => {
+    let alive = true;
+    if (!identity?.discordId) {
+      setShowAdmin(false);
+      return () => { alive = false; };
+    }
+    isAdminIdentity(identity)
+      .then((allowed) => { if (alive) setShowAdmin(Boolean(allowed)); })
+      .catch(() => { if (alive) setShowAdmin(false); });
+    return () => { alive = false; };
+  }, [identity?.discordId]);
 
   return (
     <div className="min-h-screen overflow-hidden">
@@ -37,6 +51,11 @@ export default function AppShell({ children }) {
                 {label}
               </NavLink>
             ))}
+            {showAdmin ? (
+              <NavLink to="/admin" className={({ isActive }) => `rounded-lg px-4 py-2 text-sm font-semibold transition ${isActive ? "bg-white/10 text-white" : "text-white/68 hover:bg-white/5 hover:text-white"}`}>
+                Admin
+              </NavLink>
+            ) : null}
           </nav>
           <div className="hidden items-center gap-3 lg:flex">
             {user ? (
@@ -62,6 +81,7 @@ export default function AppShell({ children }) {
           <div className="border-t border-white/10 px-4 py-3 lg:hidden">
             <div className="grid gap-2">
               {nav.map(([label, path]) => <Link key={path} to={path} onClick={() => setOpen(false)} className="rounded-lg bg-white/5 px-3 py-2 font-semibold">{label}</Link>)}
+              {showAdmin ? <Link to="/admin" onClick={() => setOpen(false)} className="rounded-lg bg-white/5 px-3 py-2 font-semibold">Admin</Link> : null}
               <Button onClick={user ? logout : login} icon={user ? LogOut : LogIn}>{user ? "Logout" : loading ? "Loading..." : "Login"}</Button>
               {error ? <div className="rounded-lg border border-rose/30 bg-rose/10 px-3 py-2 text-sm text-rose">{error}</div> : null}
             </div>
