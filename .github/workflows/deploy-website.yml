@@ -53,8 +53,13 @@ jobs:
           cache: npm
           cache-dependency-path: website/package-lock.json
       - name: Install bot dependencies
-        working-directory: .
-        run: npm ci
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
       - run: npm ci
       - name: Check website configuration
         run: |
