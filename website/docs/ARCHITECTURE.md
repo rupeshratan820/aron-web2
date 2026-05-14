@@ -4,7 +4,11 @@ Aron website is a static React + Vite application deployable to GitHub Pages. It
 
 ## Firebase Auth
 
-Configure Firebase Authentication with a custom Discord OIDC provider. Use provider id `oidc.discord`, scope `identify`, and the GitHub Pages callback domain in Firebase authorized domains.
+Configure Firebase Authentication with a custom Discord OIDC provider. Use provider id `oidc.discord` and scope `identify`.
+
+In Firebase Console > Authentication > Settings > Authorized domains, add the bare site host that serves the app, for example `rupeshratan820.github.io`. Do not include `https://`, the repository path, a trailing slash, or a hash route.
+
+In the Discord Developer Portal OAuth2 redirect list, use Firebase's auth handler URL for this project, for example `https://aron0-877c7.firebaseapp.com/__/auth/handler`, not the GitHub Pages URL.
 
 The website never stores Discord client secrets. Login uses Firebase Auth redirect/popup and reads Discord identity from the authenticated provider profile.
 
