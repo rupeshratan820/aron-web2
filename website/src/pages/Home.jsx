@@ -6,17 +6,13 @@ import Page from "../components/Page.jsx";
 import Button from "../components/Button.jsx";
 import StatCard from "../components/StatCard.jsx";
 import CardTile from "../components/CardTile.jsx";
-import { getSiteStats } from "../lib/data.js";
-
-const showcase = [
-  { id: "a", name: "Neon Sakura", series: "Aron Genesis", style: "mythic" },
-  { id: "b", name: "Moonlit Ace", series: "Guild War", style: "legendary" },
-  { id: "c", name: "Cyber Shrine", series: "Wish Core", style: "rare" }
-];
+import { getSiteStats, getTopWishlistedCards } from "../lib/data.js";
 
 export default function Home() {
   const [stats, setStats] = useState({ players: 0, cards: 0, copies: 0, guilds: 0 });
+  const [showcase, setShowcase] = useState([]);
   useEffect(() => { getSiteStats().then(setStats).catch((error) => console.warn("[Website data] Stats failed:", error)); }, []);
+  useEffect(() => { getTopWishlistedCards(3).then(setShowcase).catch((error) => console.warn("[Website data] Showcase failed:", error)); }, []);
 
   return (
     <Page className="pb-20">
@@ -39,14 +35,14 @@ export default function Home() {
           </div>
         </div>
         <div className="relative h-[560px]">
-          {showcase.map((card, index) => (
+          {showcase.map(({ card, count }, index) => (
             <motion.div
               key={card.id}
               className={`absolute w-64 ${index === 0 ? "left-2 top-14 z-20" : index === 1 ? "right-0 top-2 z-10" : "bottom-10 left-28 z-30"}`}
               animate={{ y: [0, -18, 0], rotate: index === 1 ? [8, 4, 8] : [-6, -2, -6] }}
               transition={{ duration: 5 + index, repeat: Infinity, ease: "easeInOut" }}
             >
-              <CardTile card={card} wished={index !== 1} count={(index + 1) * 247} />
+              <CardTile card={card} wished count={count} />
             </motion.div>
           ))}
         </div>
