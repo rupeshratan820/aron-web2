@@ -51,9 +51,43 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             website/package-lock.json
+      - name: Load website .env fallback
+        run: |
+          if [ -f website/.env ]; then
+            while IFS= read -r line || [ -n "$line" ]; do
+              line="${line%$'\r'}"
+              case "$line" in
+                ""|\#*) continue ;;
+              esac
+              case "$line" in
+                *=*) ;;
+                *) continue ;;
+              esac
+
+              key="${line%%=*}"
+              value="${line#*=}"
+
+              if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && [ -z "${!key}" ]; then
+                printf '%s=%s\n' "$key" "$value" >> "$GITHUB_ENV"
+                export "$key=$value"
+              fi
+            done < website/.env
+          fi
+
+          if [ -z "$FIREBASE_DATABASE_URL" ] && [ -n "$VITE_FIREBASE_DATABASE_URL" ]; then
+            printf 'FIREBASE_DATABASE_URL=%s\n' "$VITE_FIREBASE_DATABASE_URL" >> "$GITHUB_ENV"
+            export FIREBASE_DATABASE_URL="$VITE_FIREBASE_DATABASE_URL"
+          fi
+
+          if [ -z "$FIREBASE_DB_ROOT" ] && [ -n "$VITE_FIREBASE_DB_ROOT" ]; then
+            printf 'FIREBASE_DB_ROOT=%s\n' "$VITE_FIREBASE_DB_ROOT" >> "$GITHUB_ENV"
+            export FIREBASE_DB_ROOT="$VITE_FIREBASE_DB_ROOT"
+          fi
       - name: Install bot dependencies
         run: |
-          if [ -f package-lock.json ]; then
+          if [ ! -f package.json ]; then
+            echo "::warning::Root package.json was not found in this checkout, so bot dependency install is being skipped."
+          elif [ -f package-lock.json ]; then
             npm ci
           else
             npm install
@@ -70,13 +104,22 @@ jobs:
               missing=1
             fi
           done
-          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ] && [ -z "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+          if [ -f package.json ] && [ -f scripts/export-website-snapshot.js ] && [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ] && [ -z "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
             echo "::error::FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_BASE64 is required to export the website data snapshot."
             missing=1
           fi
           exit "$missing"
       - name: Export website data snapshot
-        run: npm run export:website-data
+        run: |
+          if [ -f package.json ] && [ -f scripts/export-website-snapshot.js ]; then
+            npm run export:website-data
+          elif [ -f website/public/data/snapshot.json ]; then
+            echo "::warning::Root bot project was not found, so the existing website snapshot will be used."
+          else
+            echo "::warning::Root bot project and website snapshot were not found. Creating an empty snapshot."
+            mkdir -p website/public/data
+            printf '{"generatedAt":"%s","stats":{"players":0,"cards":0,"copies":0,"guilds":0},"users":{},"cards":{},"guilds":{},"security":{},"wishlistLeaderboard":{}}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > website/public/data/snapshot.json
+          fi
       - name: Build website
         working-directory: website
         run: npm run build
