@@ -64,6 +64,31 @@ async function readLiveOrSnapshot(path, fallback = null) {
   return readSnapshotValue(path, fallback);
 }
 
+export function clearDataCache(prefix = "") {
+  if (!prefix) {
+    cache.clear();
+    return;
+  }
+
+  for (const key of cache.keys()) {
+    if (String(key).startsWith(prefix)) cache.delete(key);
+  }
+}
+
+export async function getWishlistLeaderboardCounts() {
+  const liveCache = await readLiveOrSnapshot("meta/wishlistLeaderboard", {});
+  if (liveCache?.counts && typeof liveCache.counts === "object" && !Array.isArray(liveCache.counts)) {
+    return liveCache.counts;
+  }
+
+  if (liveCache && typeof liveCache === "object" && !Array.isArray(liveCache) && Object.keys(liveCache).length > 0) {
+    return liveCache;
+  }
+
+  const snapshotCounts = await readSnapshotValue("wishlistLeaderboard", {});
+  return snapshotCounts && typeof snapshotCounts === "object" && !Array.isArray(snapshotCounts) ? snapshotCounts : {};
+}
+
 async function readCollection(path, limit = 100) {
   try {
     const value = await readFirst(path, limit);
@@ -104,7 +129,7 @@ export async function getTopWishlistedCards(limit = 3) {
   return cached(`topWishlistedCards:${limit}`, async () => {
     const [cards, wishlistLeaderboard] = await Promise.all([
       readCollection("cards", 500),
-      readLiveOrSnapshot("wishlistLeaderboard", {})
+      getWishlistLeaderboardCounts()
     ]);
 
     return Object.entries(normalizeCollection(wishlistLeaderboard))
@@ -127,7 +152,7 @@ export async function getDashboard(discordId) {
       readCollection("cards", 200),
       readCollection("guilds", 100),
       readLiveOrSnapshot(`security/${discordId}`),
-      readLiveOrSnapshot("wishlistLeaderboard", {})
+      getWishlistLeaderboardCounts()
     ]);
     const guild = user?.guildId ? guilds?.[user.guildId] : null;
     return { user, cards: normalizeCollection(cards), guild, security, wishlistLeaderboard: wishlistLeaderboard || {} };
