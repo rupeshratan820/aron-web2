@@ -3,6 +3,7 @@ import { getDeviceHash, scoreSecurity, sha256Hex } from "./security.js";
 
 const CACHE_TTL = 60_000;
 const cache = new Map();
+const EMPTY_STATS = { players: 0, cards: 0, copies: 0, guilds: 0 };
 
 async function cached(key, loader, ttl = CACHE_TTL) {
   const entry = cache.get(key);
@@ -13,16 +14,82 @@ async function cached(key, loader, ttl = CACHE_TTL) {
 }
 
 export function normalizeCollection(value) {
+  if (Array.isArray(value)) {
+    return Object.fromEntries(
+      value
+        .map((entry, index) => [String(index), entry])
+        .filter(([, entry]) => entry != null)
+    );
+  }
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function snapshotUrl() {
+  const base = String(import.meta.env.BASE_URL || "/");
+  return `${base.endsWith("/") ? base : `${base}/`}data/snapshot.json`;
+}
+
+async function getSnapshot() {
+  return cached("websiteSnapshot", async () => {
+    const response = await fetch(snapshotUrl(), { cache: "no-store" });
+    if (!response.ok) throw new Error(`Website data snapshot failed to load (${response.status}).`);
+    return response.json();
+  }, 15_000);
+}
+
+function getSnapshotPath(snapshot, path) {
+  return String(path || "")
+    .split("/")
+    .filter(Boolean)
+    .reduce((value, segment) => value?.[segment], snapshot);
+}
+
+async function readSnapshotValue(path, fallback = null) {
+  try {
+    const snapshot = await getSnapshot();
+    const value = getSnapshotPath(snapshot, path);
+    return value == null ? fallback : value;
+  } catch {
+    return fallback;
+  }
+}
+
+async function readLiveOrSnapshot(path, fallback = null) {
+  try {
+    const value = await readValue(path, undefined);
+    if (value !== undefined && value !== null) return value;
+  } catch (error) {
+    console.warn(`[Website data] Firebase read failed for ${path}:`, error);
+  }
+  return readSnapshotValue(path, fallback);
+}
+
+async function readCollection(path, limit = 100) {
+  try {
+    const value = await readFirst(path, limit);
+    const collection = normalizeCollection(value);
+    if (Object.keys(collection).length > 0) return collection;
+  } catch (error) {
+    console.warn(`[Website data] Firebase collection read failed for ${path}:`, error);
+  }
+
+  const snapshotValue = await readSnapshotValue(path, {});
+  const collection = normalizeCollection(snapshotValue);
+  return Object.fromEntries(Object.entries(collection).slice(0, limit));
 }
 
 export async function getSiteStats() {
   return cached("siteStats", async () => {
+    const snapshotStats = await readSnapshotValue("stats", null);
+    if (snapshotStats && Object.values(snapshotStats).some((value) => Number(value) > 0)) {
+      return { ...EMPTY_STATS, ...snapshotStats };
+    }
+
     const [users, cards, codes, guilds] = await Promise.all([
-      readFirst("users", 200),
-      readFirst("cards", 200),
-      readFirst("codes", 200),
-      readFirst("guilds", 200)
+      readCollection("users", 500),
+      readCollection("cards", 500),
+      readCollection("codes", 5000),
+      readCollection("guilds", 500)
     ]);
     return {
       players: Object.keys(normalizeCollection(users)).length,
@@ -37,11 +104,11 @@ export async function getDashboard(discordId) {
   if (!discordId) return null;
   return cached(`dashboard:${discordId}`, async () => {
     const [user, cards, guilds, security, wishlistLeaderboard] = await Promise.all([
-      readValue(`users/${discordId}`),
-      readFirst("cards", 80),
-      readFirst("guilds", 40),
-      readValue(`meta/accountSecurity/userStatuses/${discordId}`),
-      readValue("meta/wishlistLeaderboard/counts", {})
+      readLiveOrSnapshot(`users/${discordId}`),
+      readCollection("cards", 200),
+      readCollection("guilds", 100),
+      readLiveOrSnapshot(`security/${discordId}`),
+      readLiveOrSnapshot("wishlistLeaderboard", {})
     ]);
     const guild = user?.guildId ? guilds?.[user.guildId] : null;
     return { user, cards: normalizeCollection(cards), guild, security, wishlistLeaderboard: wishlistLeaderboard || {} };
@@ -53,11 +120,11 @@ export async function getPublicProfile(discordId) {
 }
 
 export async function getCardsPage(limit = 60) {
-  return cached(`cards:${limit}`, () => readFirst("cards", limit), 45_000);
+  return cached(`cards:${limit}`, () => readCollection("cards", limit), 45_000);
 }
 
 export async function getGuildsPage(limit = 50) {
-  return cached(`guilds:${limit}`, () => readFirst("guilds", limit), 45_000);
+  return cached(`guilds:${limit}`, () => readCollection("guilds", limit), 45_000);
 }
 
 export async function getWishlistData(discordId) {
