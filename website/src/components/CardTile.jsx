@@ -1,7 +1,10 @@
 import { Heart, Sparkles } from "lucide-react";
-import { cardImage, safeText } from "../lib/format.js";
+import { cardImage, cardStyle, formatCardGen, safeText } from "../lib/format.js";
 
 export default function CardTile({ card, copy, wished, count }) {
+  const style = cardStyle(card, copy);
+  const gen = formatCardGen(copy?.gen || card?.gen);
+
   return (
     <article className="card-tilt shine rounded-lg border border-white/10 bg-panel/86 p-3 shadow-card">
       <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-white/5">
@@ -14,12 +17,12 @@ export default function CardTile({ card, copy, wished, count }) {
       <div className="mt-3 flex items-center justify-between gap-2 text-sm">
         <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-1 font-semibold text-white/70">
           <Sparkles className="h-3.5 w-3.5 text-violet" />
-          Gen {copy?.gen || card?.gen || "?"}
+          {gen || style.shortLabel}
         </span>
         <span className="rounded-md bg-white/5 px-2 py-1 font-mono text-white/70">{copy?.code || card?.id || "ARON"}</span>
       </div>
       <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-xs font-bold uppercase tracking-[0.16em] text-white/46">
-        <span>{card?.style || card?.class || "premium"}</span>
+        <span>{style.label}</span>
         <span className={wished ? "text-rose" : "text-white/46"}><Heart className="mr-1 inline h-3.5 w-3.5" />{count || 0}</span>
       </div>
     </article>
