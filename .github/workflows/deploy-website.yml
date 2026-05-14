@@ -20,9 +20,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: website
     env:
       FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL || vars.FIREBASE_DATABASE_URL }}
       FIREBASE_DB_ROOT: ${{ secrets.FIREBASE_DB_ROOT || vars.FIREBASE_DB_ROOT || secrets.VITE_FIREBASE_DB_ROOT || vars.VITE_FIREBASE_DB_ROOT }}
@@ -51,16 +48,19 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: website/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            website/package-lock.json
       - name: Install bot dependencies
-        working-directory: ${{ github.workspace }}
         run: |
           if [ -f package-lock.json ]; then
             npm ci
           else
             npm install
           fi
-      - run: npm ci
+      - name: Install website dependencies
+        working-directory: website
+        run: npm ci
       - name: Check website configuration
         run: |
           missing=0
@@ -76,10 +76,13 @@ jobs:
           fi
           exit "$missing"
       - name: Export website data snapshot
-        working-directory: .
         run: npm run export:website-data
-      - run: npm run build
-      - run: cp dist/index.html dist/404.html
+      - name: Build website
+        working-directory: website
+        run: npm run build
+      - name: Add Pages fallback
+        working-directory: website
+        run: cp dist/index.html dist/404.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: website/dist
