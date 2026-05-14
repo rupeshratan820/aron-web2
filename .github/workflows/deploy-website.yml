@@ -24,6 +24,10 @@ jobs:
       run:
         working-directory: website
     env:
+      FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL || vars.FIREBASE_DATABASE_URL }}
+      FIREBASE_DB_ROOT: ${{ secrets.FIREBASE_DB_ROOT || vars.FIREBASE_DB_ROOT || secrets.VITE_FIREBASE_DB_ROOT || vars.VITE_FIREBASE_DB_ROOT }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
       VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || vars.VITE_FIREBASE_API_KEY }}
       VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || vars.VITE_FIREBASE_AUTH_DOMAIN }}
       VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL || vars.VITE_FIREBASE_DATABASE_URL }}
@@ -48,17 +52,27 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: website/package-lock.json
+      - name: Install bot dependencies
+        working-directory: .
+        run: npm ci
       - run: npm ci
       - name: Check website configuration
         run: |
           missing=0
-          for name in VITE_FIREBASE_API_KEY VITE_FIREBASE_DATABASE_URL VITE_FIREBASE_PROJECT_ID VITE_DISCORD_CLIENT_ID; do
+          for name in FIREBASE_DATABASE_URL VITE_FIREBASE_API_KEY VITE_FIREBASE_DATABASE_URL VITE_FIREBASE_PROJECT_ID VITE_DISCORD_CLIENT_ID; do
             if [ -z "${!name}" ]; then
               echo "::error::$name is required for the website build. Add it as a GitHub Actions secret or repository variable."
               missing=1
             fi
           done
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ] && [ -z "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_BASE64 is required to export the website data snapshot."
+            missing=1
+          fi
           exit "$missing"
+      - name: Export website data snapshot
+        working-directory: .
+        run: npm run export:website-data
       - run: npm run build
       - run: cp dist/index.html dist/404.html
       - uses: actions/upload-pages-artifact@v3
