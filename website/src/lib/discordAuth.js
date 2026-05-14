@@ -12,6 +12,12 @@ const RETURN_ROUTE_KEY = "aron.firebaseAuthReturnTo";
 const DISCORD_PROVIDER_ID = String(import.meta.env.VITE_FIREBASE_DISCORD_PROVIDER_ID || "oidc.discord").trim();
 
 function friendlyAuthError(error) {
+  if (error?.code === "auth/unauthorized-domain") {
+    const domain = window.location.hostname;
+    return new Error(
+      `Firebase Auth has not authorized this site domain (${domain}). Add "${domain}" in Firebase Console > Authentication > Settings > Authorized domains, then try again.`
+    );
+  }
   if (error?.code === "auth/configuration-not-found") {
     return new Error(
       `Firebase Discord login is not configured. Enable a Firebase Auth custom OIDC provider with provider ID "${DISCORD_PROVIDER_ID}".`
