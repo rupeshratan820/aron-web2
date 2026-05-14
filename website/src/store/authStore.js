@@ -8,16 +8,17 @@ export const useAuthStore = create((set, get) => ({
   identity: null,
   loading: true,
   error: "",
-  login: () => {
+  login: async () => {
     try {
-      set({ error: "" });
-      startDiscordLogin();
+      set({ error: "", loading: true });
+      const session = await startDiscordLogin();
+      if (session) await get().setSession(session);
     } catch (error) {
       set({ error: error.message, loading: false });
     }
   },
-  logout: () => {
-    clearDiscordSession();
+  logout: async () => {
+    await clearDiscordSession();
     set({ user: null, identity: null, error: "", loading: false });
   },
   setSession: async (session) => {
