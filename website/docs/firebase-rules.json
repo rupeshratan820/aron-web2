@@ -1,0 +1,67 @@
+{
+  "rules": {
+    "botData": {
+      ".read": false,
+      ".write": false,
+      "cards": {
+        ".read": true,
+        ".write": false,
+        ".indexOn": [".key"]
+      },
+      "guilds": {
+        ".read": true,
+        ".write": false,
+        ".indexOn": [".key"]
+      },
+      "codes": {
+        ".read": false,
+        ".write": false
+      },
+      "users": {
+        "$discordId": {
+          ".read": true,
+          ".write": false
+        }
+      },
+      "webUsers": {
+        "$discordId": {
+          ".read": "auth != null && root.child('botData/meta/accountSecurity/userStatuses/' + $discordId + '/status').val() == 'verified'",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && auth.token.firebase.identities['oidc.discord'][0] == $discordId"
+        }
+      },
+      "verificationTokens": {
+        "$tokenHash": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && data.child('targetUserId').val() == auth.token.firebase.identities['oidc.discord'][0]",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && data.child('targetUserId').val() == auth.token.firebase.identities['oidc.discord'][0] && !data.child('usedAt').exists() && newData.child('usedAt').exists() && newData.child('usedBy').val() == auth.token.firebase.identities['oidc.discord'][0]"
+        }
+      },
+      "verificationAudit": {
+        "$discordId": {
+          "$tokenHash": {
+            ".read": false,
+            ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && auth.token.firebase.identities['oidc.discord'][0] == $discordId"
+          }
+        }
+      },
+      "meta": {
+        "wishlistLeaderboard": {
+          ".read": true,
+          ".write": false
+        },
+        "accountSecurity": {
+          "userStatuses": {
+            "$discordId": {
+              ".read": true,
+              ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && auth.token.firebase.identities['oidc.discord'][0] == $discordId",
+              ".validate": "newData.child('status').val() == 'verified' || newData.child('status').val() == 'quarantined' || newData.child('status').val() == 'blocked'"
+            }
+          },
+          "$other": {
+            ".read": false,
+            ".write": false
+          }
+        }
+      }
+    }
+  }
+}

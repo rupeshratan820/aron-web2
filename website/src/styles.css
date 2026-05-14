@@ -1,0 +1,75 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  background: #05070d;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(64, 230, 255, 0.16), transparent 28rem),
+    radial-gradient(circle at 82% 18%, rgba(255, 79, 184, 0.13), transparent 28rem),
+    linear-gradient(180deg, #05070d 0%, #0a0d16 48%, #05070d 100%);
+  color: #f8fbff;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.glass {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(14, 20, 35, 0.82), rgba(11, 14, 25, 0.62));
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(20px);
+}
+
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: -70% -40%;
+  background: linear-gradient(120deg, transparent 38%, rgba(255, 255, 255, 0.32), transparent 62%);
+  transform: translateX(-80%) rotate(10deg);
+  transition: transform 700ms ease;
+}
+
+.shine:hover::after {
+  transform: translateX(75%) rotate(10deg);
+}
+
+.particle-field {
+  background-image:
+    radial-gradient(circle, rgba(64, 230, 255, 0.55) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255, 79, 184, 0.35) 1px, transparent 1px);
+  background-position: 0 0, 26px 34px;
+  background-size: 72px 72px, 96px 96px;
+  mask-image: linear-gradient(180deg, black, transparent);
+}
+
+.card-tilt {
+  transform-style: preserve-3d;
+  transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+}
+
+.card-tilt:hover {
+  transform: translateY(-8px) rotateX(4deg) rotateY(-5deg);
+  border-color: rgba(64, 230, 255, 0.48);
+  box-shadow: 0 28px 70px rgba(64, 230, 255, 0.13);
+}
