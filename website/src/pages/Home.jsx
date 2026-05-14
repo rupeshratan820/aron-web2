@@ -15,8 +15,8 @@ const showcase = [
 ];
 
 export default function Home() {
-  const [stats, setStats] = useState({ players: 1200, cards: 380, copies: 18000, guilds: 64 });
-  useEffect(() => { getSiteStats().then(setStats).catch(() => {}); }, []);
+  const [stats, setStats] = useState({ players: 0, cards: 0, copies: 0, guilds: 0 });
+  useEffect(() => { getSiteStats().then(setStats).catch((error) => console.warn("[Website data] Stats failed:", error)); }, []);
 
   return (
     <Page className="pb-20">
