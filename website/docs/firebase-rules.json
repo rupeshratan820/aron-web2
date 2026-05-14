@@ -5,7 +5,7 @@
       ".write": false,
       "cards": {
         ".read": true,
-        ".write": false,
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])",
         ".indexOn": [".key"]
       },
       "guilds": {
@@ -15,12 +15,16 @@
       },
       "codes": {
         ".read": false,
-        ".write": false
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
+      },
+      "claimedGens": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
       },
       "users": {
         "$discordId": {
           ".read": true,
-          ".write": false
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
         }
       },
       "webUsers": {
@@ -44,15 +48,39 @@
         }
       },
       "meta": {
+        "adminUserIds": {
+          ".read": true,
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
+        },
+        "adminAudit": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
+        },
+        "botBans": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
+        },
+        "disabledCommands": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
+        },
+        "channelDisabledCommands": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
+        },
+        "nextCardId": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
+        },
         "wishlistLeaderboard": {
           ".read": true,
-          ".write": false
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0])"
         },
         "accountSecurity": {
           "userStatuses": {
             "$discordId": {
               ".read": true,
-              ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && auth.token.firebase.identities['oidc.discord'][0] == $discordId",
+              ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && (auth.token.firebase.identities['oidc.discord'][0] == $discordId || root.child('botData/meta/adminUserIds').hasChild(auth.token.firebase.identities['oidc.discord'][0]))",
               ".validate": "newData.child('status').val() == 'verified' || newData.child('status').val() == 'quarantined' || newData.child('status').val() == 'blocked'"
             }
           },
