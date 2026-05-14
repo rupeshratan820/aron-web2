@@ -1,38 +1,19 @@
-const DISCORD_API = "https://discord.com/api";
-const SESSION_KEY = "aron.discordSession";
-const OAUTH_STATE_KEY = "aron.discordOAuthState";
+import {
+  getRedirectResult,
+  OAuthProvider,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut
+} from "firebase/auth";
+import { auth } from "./firebase.js";
 
-function getRedirectUri() {
-  return import.meta.env.VITE_DISCORD_REDIRECT_URI || `${window.location.origin}${window.location.pathname}`;
-}
-
-function randomState() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function avatarUrl(user) {
-  if (user?.avatar) {
-    return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`;
-  }
-  const index = Number(user?.discriminator || 0) % 5;
-  return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
-}
-
-function normalizeUser(user) {
-  return {
-    discordId: String(user?.id || ""),
-    username: user?.global_name || user?.username || "Aron Player",
-    avatar: avatarUrl(user),
-    raw: user
-  };
-}
+const RETURN_ROUTE_KEY = "aron.firebaseAuthReturnTo";
+const DISCORD_PROVIDER_ID = "oidc.discord";
 
 function currentRoute() {
   const hash = window.location.hash || "#/";
-  if (hash.startsWith("#access_token") || hash.startsWith("#error")) return "/";
-  return hash.slice(1) || "/";
+  return hash.startsWith("#/") ? hash.slice(1) || "/" : "/";
 }
 
 function restoreRoute(route = "/") {
@@ -40,90 +21,92 @@ function restoreRoute(route = "/") {
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${target}`);
 }
 
-function parseOAuthHash() {
-  const hash = window.location.hash.replace(/^#/, "");
-  if (!hash.includes("access_token") && !hash.includes("error")) return null;
-  return Object.fromEntries(new URLSearchParams(hash));
+function avatarUrl(firebaseUser, providerProfile) {
+  if (firebaseUser?.photoURL) return firebaseUser.photoURL;
+  if (providerProfile?.photoURL) return providerProfile.photoURL;
+  return "";
+}
+
+function providerProfile(firebaseUser) {
+  return firebaseUser?.providerData?.find((profile) => profile.providerId === DISCORD_PROVIDER_ID)
+    || firebaseUser?.providerData?.[0]
+    || null;
+}
+
+function normalizeFirebaseUser(firebaseUser) {
+  if (!firebaseUser) return null;
+
+  const profile = providerProfile(firebaseUser);
+  const discordId = String(profile?.uid || "").trim();
+  return {
+    discordId,
+    username: profile?.displayName || firebaseUser.displayName || "Aron Player",
+    avatar: avatarUrl(firebaseUser, profile),
+    raw: {
+      uid: firebaseUser.uid,
+      providerId: profile?.providerId || DISCORD_PROVIDER_ID,
+      email: firebaseUser.email || profile?.email || ""
+    }
+  };
+}
+
+function createDiscordProvider() {
+  const provider = new OAuthProvider(DISCORD_PROVIDER_ID);
+  provider.addScope("identify");
+  return provider;
 }
 
 export function getStoredDiscordSession() {
+  return auth?.currentUser ? { user: normalizeFirebaseUser(auth.currentUser) } : null;
+}
+
+export async function startDiscordLogin() {
+  if (!auth) throw new Error("Firebase Auth is not configured.");
+
+  const provider = createDiscordProvider();
+  sessionStorage.setItem(RETURN_ROUTE_KEY, currentRoute());
+
   try {
-    const session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
-    if (!session?.accessToken || !session?.user?.discordId) return null;
-    if (session.expiresAt && session.expiresAt <= Date.now()) {
-      localStorage.removeItem(SESSION_KEY);
+    const credential = await signInWithPopup(auth, provider);
+    const returnTo = sessionStorage.getItem(RETURN_ROUTE_KEY) || "/";
+    sessionStorage.removeItem(RETURN_ROUTE_KEY);
+    restoreRoute(returnTo);
+    return { user: normalizeFirebaseUser(credential.user) };
+  } catch (error) {
+    if (["auth/popup-blocked", "auth/popup-closed-by-user", "auth/cancelled-popup-request"].includes(error?.code)) {
+      await signInWithRedirect(auth, provider);
       return null;
     }
-    return session;
-  } catch {
-    localStorage.removeItem(SESSION_KEY);
-    return null;
+    sessionStorage.removeItem(RETURN_ROUTE_KEY);
+    throw error;
   }
-}
-
-export function startDiscordLogin() {
-  const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
-  if (!clientId) throw new Error("Discord OAuth client ID is not configured.");
-
-  const state = randomState();
-  sessionStorage.setItem(OAUTH_STATE_KEY, JSON.stringify({ state, returnTo: currentRoute() }));
-
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: getRedirectUri(),
-    response_type: "token",
-    scope: "identify",
-    state
-  });
-
-  window.location.assign(`https://discord.com/oauth2/authorize?${params.toString()}`);
-}
-
-export async function fetchDiscordUser(accessToken, tokenType = "Bearer") {
-  const response = await fetch(`${DISCORD_API}/users/@me`, {
-    headers: { Authorization: `${tokenType} ${accessToken}` }
-  });
-  if (!response.ok) throw new Error("Discord login succeeded, but fetching your profile failed.");
-  return normalizeUser(await response.json());
 }
 
 export async function finishDiscordLogin() {
-  const callback = parseOAuthHash();
-  if (!callback) return getStoredDiscordSession();
+  if (!auth) return null;
 
-  const storedState = JSON.parse(sessionStorage.getItem(OAUTH_STATE_KEY) || "{}");
-  sessionStorage.removeItem(OAUTH_STATE_KEY);
-  const returnTo = storedState.returnTo || "/";
+  const credential = await getRedirectResult(auth).catch((error) => {
+    sessionStorage.removeItem(RETURN_ROUTE_KEY);
+    throw error;
+  });
 
-  if (callback.error) {
+  const returnTo = sessionStorage.getItem(RETURN_ROUTE_KEY);
+  if (returnTo) {
+    sessionStorage.removeItem(RETURN_ROUTE_KEY);
     restoreRoute(returnTo);
-    throw new Error(callback.error_description || callback.error || "Discord login was cancelled.");
   }
 
-  if (!callback.access_token) {
-    restoreRoute(returnTo);
-    throw new Error("Discord did not return an access token.");
-  }
+  if (credential?.user) return { user: normalizeFirebaseUser(credential.user) };
 
-  if (!storedState.state || callback.state !== storedState.state) {
-    restoreRoute(returnTo);
-    throw new Error("Discord login state did not match. Please try again.");
-  }
-
-  const user = await fetchDiscordUser(callback.access_token, callback.token_type || "Bearer");
-  const session = {
-    accessToken: callback.access_token,
-    tokenType: callback.token_type || "Bearer",
-    expiresAt: Date.now() + Number(callback.expires_in || 0) * 1000,
-    user
-  };
-
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  restoreRoute(returnTo);
-  return session;
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      unsubscribe();
+      resolve(firebaseUser ? { user: normalizeFirebaseUser(firebaseUser) } : null);
+    });
+  });
 }
 
-export function clearDiscordSession() {
-  localStorage.removeItem(SESSION_KEY);
-  sessionStorage.removeItem(OAUTH_STATE_KEY);
+export async function clearDiscordSession() {
+  sessionStorage.removeItem(RETURN_ROUTE_KEY);
+  if (auth) await signOut(auth);
 }
