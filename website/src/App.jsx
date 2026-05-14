@@ -10,6 +10,7 @@ import Wishlist from "./pages/Wishlist.jsx";
 import Guilds from "./pages/Guilds.jsx";
 import Invite from "./pages/Invite.jsx";
 import Support from "./pages/Support.jsx";
+import Admin from "./pages/Admin.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import { useAuthBootstrap } from "./store/authStore.js";
 
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/guilds" element={<Guilds />} />
           <Route path="/invite" element={<Invite />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AnimatePresence>
