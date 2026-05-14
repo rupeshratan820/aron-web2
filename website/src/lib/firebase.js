@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getDatabase, ref, get, set, update, runTransaction, query, orderByKey, limitToFirst } from "firebase/database";
 
 const firebaseConfig = {
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.databaseURL && firebaseConfig.projectId);
 export const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
+export const auth = app ? getAuth(app) : null;
 export const database = app ? getDatabase(app) : null;
 export const dbRoot = String(import.meta.env.VITE_FIREBASE_DB_ROOT || "botData").replace(/^\/+|\/+$/g, "") || "botData";
 
