@@ -106,6 +106,28 @@ function uniqueSorted(values) {
   return [...new Set((Array.isArray(values) ? values : []).map(cleanId).filter(Boolean))].sort();
 }
 
+function normalizeAdminIds(value) {
+  if (Array.isArray(value)) return uniqueSorted(value);
+  if (isPlainObject(value)) {
+    return uniqueSorted(
+      Object.entries(value)
+        .filter(([, enabled]) => enabled !== false && enabled !== null)
+        .map(([userId]) => userId)
+    );
+  }
+  return [];
+}
+
+function envAdminIds() {
+  return uniqueSorted(String(import.meta.env.VITE_ADMIN_DISCORD_IDS || "")
+    .split(/[,\s]+/)
+    .filter(Boolean));
+}
+
+function adminIdMap(ids) {
+  return Object.fromEntries(uniqueSorted(ids).map((id) => [id, true]));
+}
+
 function buildWishlistCounts(users, cards) {
   const validCardIds = new Set(Object.keys(normalizeCollection(cards)));
   const counts = {};
@@ -132,7 +154,7 @@ async function audit(identity, action, details = {}) {
 
 export async function getAdminIds() {
   const ids = await readValue("meta/adminUserIds", []);
-  return uniqueSorted(ids);
+  return uniqueSorted([...normalizeAdminIds(ids), ...envAdminIds()]);
 }
 
 export async function isAdminIdentity(identity) {
@@ -170,7 +192,7 @@ export async function setAdminUser(identity, userId, enabled) {
   if (!normalized) throw new Error("User ID is required.");
   if (enabled) ids.add(normalized);
   else ids.delete(normalized);
-  await writeValue("meta/adminUserIds", [...ids].sort());
+  await writeValue("meta/adminUserIds", adminIdMap([...ids]));
   await audit(identity, enabled ? "admin.grant" : "admin.revoke", { userId: normalized });
   clearDataCache();
 }
