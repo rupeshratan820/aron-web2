@@ -203,9 +203,15 @@ export async function verifyToken(rawToken, identity) {
   const tokenPath = `verificationTokens/${tokenHash}`;
   const token = await readValue(tokenPath);
   if (!token) throw new Error("This verification link is invalid or expired.");
+  if (token.status === "superseded") throw new Error("A newer verification link was issued. Please use the latest button from Discord.");
   if (token.usedAt) throw new Error("This verification link has already been used.");
   if (Number(token.expiresAt || 0) < Date.now()) throw new Error("This verification link has expired.");
   if (token.targetUserId && token.targetUserId !== discordId) throw new Error("This link was created for a different Discord account.");
+
+  const session = await readValue(`verificationSessions/${discordId}`, null);
+  if (session?.activeTokenHash && session.activeTokenHash !== tokenHash) {
+    throw new Error("A newer verification link was issued. Please use the latest button from Discord.");
+  }
 
   const [userRecord, deviceHash] = await Promise.all([
     readValue(`users/${discordId}`),
@@ -217,7 +223,7 @@ export async function verifyToken(rawToken, identity) {
   const finalStatus = security.status === "suspicious" ? "quarantined" : security.status;
   const now = Date.now();
 
-  await transaction(tokenPath, (current) => {
+  const tokenResult = await transaction(tokenPath, (current) => {
     if (!current || current.usedAt || Number(current.expiresAt || 0) < now) return current;
     return {
       ...current,
@@ -226,6 +232,9 @@ export async function verifyToken(rawToken, identity) {
       status: finalStatus
     };
   });
+  if (!tokenResult?.committed) {
+    throw new Error("This verification link was already used or expired. Please request a fresh one in Discord.");
+  }
 
   await updateValue(`meta/accountSecurity/userStatuses/${discordId}`, {
     status: finalStatus,
@@ -237,6 +246,13 @@ export async function verifyToken(rawToken, identity) {
     avatar: identity.avatar,
     deviceHash,
     suspicionScore: security.score,
+    tokenHash
+  });
+
+  await updateValue(`verificationSessions/${discordId}`, {
+    activeTokenHash: null,
+    completedAt: now,
+    status: finalStatus,
     tokenHash
   });
 
