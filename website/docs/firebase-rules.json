@@ -47,6 +47,12 @@
           }
         }
       },
+      "verificationSessions": {
+        "$discordId": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && auth.token.firebase.identities['oidc.discord'][0] == $discordId",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider == 'oidc.discord' && auth.token.firebase.identities['oidc.discord'][0] == $discordId"
+        }
+      },
       "meta": {
         "adminUserIds": {
           ".read": true,
